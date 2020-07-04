@@ -48,12 +48,17 @@
 </nav>
 {% endblock %}
 
+
+{% block body %}
+base.html
+
+
 {% if name %}
     Hello, {{name}}
 {% else %}
     Welcome!
 {% endif %}
 
-{% block body %}
 {% endblock %}
+
 </html>
