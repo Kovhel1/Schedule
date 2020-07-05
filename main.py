@@ -1,7 +1,8 @@
 import os
-from flask import Flask, render_template
+from flask import Flask, render_template, session, redirect, url_for, flash
 from flask_sqlalchemy import SQLAlchemy
 from flask_wtf import  FlaskForm
+from flask_bootstrap import Bootstrap
 from wtforms import StringField, PasswordField, SubmitField
 from wtforms.validators import Required, Email
 
@@ -13,19 +14,24 @@ app.config['SQLALCHEMY_DATABASE_URI']=\
 app.config['SQLALCHEMY_COMMIT_ON_TEARDOWN'] = True
 app.config[ 'SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
+bootstrap = Bootstrap(app)
 
 class User (db.Model):
-    __tabelname__ = 'user'
+    __tabelname__ = 'users'
     id = db.Column(db.Integer, primary_key = True)
     username = db.Column(db.String(64))
     password = db.Column(db.String(64))
-    email = db.Column(db.String(64), unique = True )
- 
+    email = db.Column(db.String(64) )
+    
+    def __repr__(self):
+        return '<User %r>' % self.username
+
+    
     
 class Login(FlaskForm):
-    username = StringField('Enter your username', validators = [Required()])
-    password = PasswordField('Enter your password', validators = [Required()])
-    email = StringField('your@mail.ru', validators = [Required(), Email()])
+    username = StringField('Username', validators = [Required()])
+    password = PasswordField('Password', validators = [Required()])
+    email = StringField('Email', validators = [Required(), Email()])
     submit = SubmitField('Submit')
     
     
@@ -37,14 +43,30 @@ def index():
     return render_template('index.html')
 
 
-@app.route('/user/<name>')
-def user(name):
-    return render_template ('user.html', name=name)
+@app.route('/user/<username>')
+def user(username):
+    return render_template ('user.html', username=username)
 
-@app.route('/login')
+@app.route('/login', methods=['GET', 'POST'])
 def login():
-    return render_template ('login.html')
-
+    form = Login()
+    if form.validate_on_submit():
+        user = User.query.filter_by(username=form.username.data).first()
+        if user is None:
+            mail = User.query.filter_by(email=form.email.data).first()
+            if mail is None:
+                user = User(username=form.username.data, email=form.email.data, password=form.password.data )
+                db.session.add(user)
+                session['username'] =  form.username.data
+                form.username.data = ''
+                return render_template ( 'user.html', username=session.get('username') )
+            else:
+                flash('This mail exists.Inter another mail')
+                return render_template ( 'login.html', form=form )
+        else:
+            flash('This user exists. If you loose your password or login..')
+            return render_template ( 'login.html', form=form )
+    return render_template ( 'login.html', form=form,  username=session.get('username'), email=session.get('email'), password=session.get('password') )    
 
 @app.errorhandler(404)
 def page_not_found(e):
